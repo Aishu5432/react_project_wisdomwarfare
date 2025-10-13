@@ -1,0 +1,17 @@
+{
+  "name": "wisdomwarfare-root",
+  "private": true,
+  "scripts": {
+    "start": "concurrently \"npm run start --prefix backend\" \"npm run start --prefix frontend\"",
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run start --prefix frontend\"",
+    "install-all": "npm install --prefix backend && npm install --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "csv-parser": "^3.2.0",
+    "multer": "^2.0.2",
+    "react-router-dom": "^7.9.1"
+  }
+}

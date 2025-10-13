@@ -1,0 +1,12 @@
+body {
+  font-family: 'Orbitron', sans-serif; /* You can load Orbitron or Exo from Google Fonts for futuristic look */
+  background: radial-gradient(circle at top, #0f172a, #000);
+}
+
+button, h1, h2 {
+  letter-spacing: 1px;
+}
+.glow-text {
+  text-shadow: 0 0 2px #0ff, 0 0 4px #00f;
+}
+

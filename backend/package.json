@@ -1,0 +1,25 @@
+{
+  "name": "wisdomwarfare-backend",
+  "version": "1.0.0",
+  "description": "Backend for Wisdom Warfare app",
+  "main": "server2.js",
+  "scripts": {
+    "start": "node server2.js",
+    "dev": "nodemon server2.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "multer": "^2.0.2",
+    "mysql2": "^3.10.1",
+    "socket.io": "^4.7.5",
+    "wisdomwarfare-root": "file:.."
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "license": "ISC"
+}
