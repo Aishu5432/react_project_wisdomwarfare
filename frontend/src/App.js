@@ -1,4 +1,3 @@
-// src/App.js
 import React, { useState } from "react";
 import {
   BrowserRouter as Router,
@@ -7,7 +6,6 @@ import {
   Navigate,
   useNavigate,
 } from "react-router-dom";
-
 import WelcomePage from "./WelcomePage";
 import GamePage from "./GamePage";
 import TeacherGameManagementPage from "./TeacherGameManagementPage";
@@ -15,10 +13,6 @@ import GameUI from "./components/GameUI/GameUI";
 import StudentDashboard from "./components/StudentDashboard/StudentDashboard";
 import "./App.css";
 
-/**
- * Small helper component shown after login that displays the "Continue" / "Logout"
- * UI and sends students to /gamepage and teachers to teacher management.
- */
 function HomeLanding({ user, role, onLogout }) {
   const navigate = useNavigate();
 
@@ -28,7 +22,6 @@ function HomeLanding({ user, role, onLogout }) {
   };
 
   if (!user || !role) {
-    // If someone hits /home without being logged in, redirect them back.
     return <Navigate to="/" replace />;
   }
 
@@ -39,7 +32,6 @@ function HomeLanding({ user, role, onLogout }) {
       <div className="flex gap-4">
         <button
           onClick={() => {
-            // Teacher -> teacher page, Student -> GamePage
             if (role === "teacher") navigate("/teacher-game-management");
             else navigate("/gamepage");
           }}
@@ -66,50 +58,50 @@ function HomeLanding({ user, role, onLogout }) {
 }
 
 function AppRouterContainer() {
-  // keep user state in the top-level container so routes can share it
-  const [user, setUser] = useState(null); // { user_id, uid, email, display_name, displayName }
-  const [role, setRole] = useState(null); // "teacher" | "student"
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState(null);
   const [gameStarted, setGameStarted] = useState(false);
-
   const navigate = useNavigate();
 
   const handleLogout = () => {
     setUser(null);
     setRole(null);
     setGameStarted(false);
-    // send user to welcome page
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("user_role");
     navigate("/", { replace: true });
+  };
+
+  const handleLogin = (userObj, roleStr) => {
+    setUser(userObj);
+    setRole(roleStr);
+    if (userObj.user_id) {
+      localStorage.setItem("user_id", userObj.user_id);
+      localStorage.setItem("user_email", userObj.email);
+      localStorage.setItem("user_role", roleStr);
+    }
+    navigate("/home", { replace: true });
   };
 
   return (
     <Routes>
-      {/* Welcome: login component */}
       <Route
         path="/"
         element={
           !user || !role ? (
-            <WelcomePage
-              onLogin={(userObj, roleStr) => {
-                setUser(userObj);
-                setRole(roleStr);
-                // after successful login navigate to landing page
-                navigate("/home", { replace: true });
-              }}
-            />
+            <WelcomePage onLogin={handleLogin} />
           ) : (
-            // if already logged in, go to post-login landing
             <Navigate to="/home" replace />
           )
         }
       />
 
-      {/* Post-login landing (Continue / Logout) */}
       <Route
         path="/home"
         element={<HomeLanding user={user} role={role} onLogout={handleLogout} />}
       />
 
-      {/* Game page: shows join/start UI for students */}
       <Route
         path="/gamepage"
         element={
@@ -117,7 +109,6 @@ function AppRouterContainer() {
             user={user}
             onStartGame={() => {
               setGameStarted(true);
-              // navigate to the play route where GameUI lives
               navigate("/play");
             }}
             onLogout={handleLogout}
@@ -125,17 +116,14 @@ function AppRouterContainer() {
         }
       />
 
-      {/* Play route where the live GameUI mounts */}
       <Route
         path="/play"
         element={
-          // protect this route lightly: redirect to /gamepage if not started
           gameStarted ? (
             <GameUI
               user={user}
               onLogout={handleLogout}
               onFinish={() => {
-                // when GameUI finishes, go back to GamePage and reset state
                 setGameStarted(false);
                 navigate("/gamepage", { replace: true });
               }}
@@ -146,11 +134,10 @@ function AppRouterContainer() {
         }
       />
 
-      {/* Dashboard & Teacher routes */}
       <Route path="/dashboard" element={<StudentDashboard />} />
+      
       <Route path="/teacher-game-management" element={<TeacherGameManagementPage />} />
 
-      {/* Fallback 404 */}
       <Route
         path="*"
         element={
@@ -162,6 +149,8 @@ function AppRouterContainer() {
           </div>
         }
       />
+
+      
     </Routes>
   );
 }

@@ -1,86 +1,138 @@
-// src/TeacherGameManagementPage.js
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { formatAccuracy, formatScore } from "../src/utils/helpers"; // 🔧 IMPORT HELPER FUNCTIONS
 
-const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:4000";
-console.log("API_BASE =", API_BASE);
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:4001";
 
-/* ================= TopPlayers (global) ================= */
 function TopPlayersModal({ players, onClose }) {
-  if (!players) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 border-2 border-red-600 rounded-xl p-6 max-w-lg w-full relative shadow-3xl">
+      <div className="bg-gray-800 border-2 border-red-600 rounded-xl p-6 max-w-4xl w-full relative max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-rose-300 hover:text-rose-100 text-3xl font-bold transition-colors duration-200"
+          className="absolute top-4 right-4 text-rose-300 hover:text-rose-100 text-3xl font-bold"
         >
           &times;
         </button>
-        <h2 className="text-3xl font-extrabold text-rose-300 mb-4 text-center">🏆 Global Top Players</h2>
-        <div className="text-gray-200 text-sm leading-relaxed max-h-80 overflow-y-auto">
-          <ol className="list-decimal list-inside space-y-2">
-            {players.map((p, i) => (
-              <li key={i} className="flex justify-between items-center bg-gray-700 p-2 rounded-lg">
-                <span className="font-semibold text-rose-200"> {i + 1}. {p.display_name || p.username || "Unknown"} (ID-{p.id || p.user_id || "—"})</span>
-                <span className="text-gray-300 text-sm">{p.score ?? 0} points</span>
-              </li>
-            ))}
-          </ol>
+        <h2 className="text-3xl font-extrabold text-rose-300 mb-4 text-center">
+          🏆 Global Leaderboard
+        </h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-white min-w-full">
+            <thead>
+              <tr className="bg-rose-700">
+                <th className="p-3 text-left">Rank</th>
+                <th className="p-3 text-left">Student</th>
+                <th className="p-3 text-left">Email</th>
+                <th className="p-3 text-right">Score</th>
+                <th className="p-3 text-right">Accuracy</th>
+                <th className="p-3 text-right">Attempts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {players.map((player, index) => (
+                <tr key={player.user_id} className="border-b border-gray-700 hover:bg-gray-700">
+                  <td className="p-3 font-bold text-rose-300">
+                    {index + 1}
+                    {index === 0 && " 🥇"}
+                    {index === 1 && " 🥈"} 
+                    {index === 2 && " 🥉"}
+                  </td>
+                  <td className="p-3 font-medium">
+                    {player.display_name || "Anonymous"}
+                  </td>
+                  <td className="p-3 text-gray-300">
+                    {player.email}
+                  </td>
+                  <td className="p-3 text-right font-bold text-rose-300">
+                    {formatScore(player.score)} {/* 🔧 FIXED */}
+                  </td>
+                  <td className="p-3 text-right text-green-400 font-bold">
+                    {formatAccuracy(player.accuracy)}% {/* 🔧 FIXED */}
+                  </td>
+                  <td className="p-3 text-right text-gray-300">
+                    {player.attempts || 0}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {players.length === 0 && (
+            <div className="text-center text-gray-400 py-8">
+              <div className="text-6xl mb-4">📊</div>
+              <p className="text-xl">No players yet</p>
+              <p className="text-sm mt-2">Students need to play games to appear on leaderboard</p>
+            </div>
+          )}
+        </div>
+        <div className="mt-6 text-center">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-rose-600 hover:bg-rose-500 rounded-lg text-white font-bold transition-colors"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
   );
 }
-//Upload Student Details
+
 function UploadStudentsSection() {
   const [studentFile, setStudentFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const handleUploadStudents = async () => {
-    if (!studentFile) return alert("Please choose a file first!");
+    if (!studentFile) {
+      alert("Please choose a CSV file first!");
+      return;
+    }
+
+    setUploading(true);
     const formData = new FormData();
     formData.append("file", studentFile);
 
     try {
-      const res = await axios.post("http://localhost:5000/upload-students", formData, {
+      const res = await axios.post(`${API_BASE}/questions/upload`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      alert(res.data.message);
+      alert(`✅ ${res.data.message}\nInserted: ${res.data.inserted}, Errors: ${res.data.errors?.length || 0}`);
       setStudentFile(null);
     } catch (err) {
-      console.error(err);
-      alert("Failed to upload student details");
+      console.error("Upload error:", err);
+      alert("❌ Failed to upload student details: " + (err.response?.data?.error || err.message));
+    } finally {
+      setUploading(false);
     }
   };
 
   return (
-    <div className="flex justify-center w-full">
-    <div className="bg-gray-800 p-6 mt-6 rounded-lg shadow-lg text-white w-full max-w-4xl mx-auto">
-      <h3 className="text-xl font-semibold mb-4 text-center">
-        👩‍🎓 Upload Students Details
+    <div className="bg-gray-800 p-6 rounded-lg shadow-lg text-white w-full max-w-2xl mx-auto border-2 border-cyan-600">
+      <h3 className="text-xl font-semibold mb-4 text-center text-cyan-300">
+        👩‍🎓 Upload Students via CSV
       </h3>
-
-      <div className="flex flex-col items-center space-y-4  w-full">
+      <div className="flex flex-col items-center space-y-4">
         <input
           type="file"
-          accept=".csv, .xlsx, .xls"
+          accept=".csv"
           onChange={(e) => setStudentFile(e.target.files[0])}
-          className="text-gray-300 bg-gray-900 border border-gray-600 rounded px-3 py-2 w-full max-w-lg"
+          className="text-gray-300 bg-gray-900 border border-cyan-600 rounded px-3 py-2 w-full"
         />
-
         <button
           onClick={handleUploadStudents}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg shadow-md transition-all duration-200"
+          disabled={uploading || !studentFile}
+          className="bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-800 text-white font-semibold px-5 py-2 rounded-lg shadow-md transition-all duration-200"
         >
-          📂 Upload Students
+          {uploading ? "📤 Uploading..." : "📂 Upload Students"}
         </button>
+        <p className="text-sm text-gray-400 text-center">
+          CSV should have columns: email, display_name, role
+        </p>
       </div>
-    </div>
     </div>
   );
 }
 
-//editquestion
 function EditQuestionModal({ question, onSave, onCancel }) {
   const [form, setForm] = useState({
     text: "",
@@ -94,171 +146,602 @@ function EditQuestionModal({ question, onSave, onCancel }) {
 
   const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"];
 
-  // Populate form whenever question changes
   useEffect(() => {
-    if (question) setForm({ ...question });
+    if (question) {
+      setForm({
+        text: question.text || "",
+        option_a: question.option_a || "",
+        option_b: question.option_b || "",
+        option_c: question.option_c || "",
+        option_d: question.option_d || "",
+        correct: question.correct || "",
+        difficulty: question.difficulty || "Medium",
+      });
+    }
   }, [question]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.text || !form.option_a || !form.option_b || !form.option_c || !form.option_d || !form.correct) {
+      alert("Please fill all fields");
+      return;
+    }
+    onSave(form);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-      <div className="bg-gray-900 text-white p-6 rounded-2xl w-[90%] md:w-[50%]">
-        <h2 className="text-xl font-bold mb-4 text-rose-300">✏️ Edit Question</h2>
+      <div className="bg-gray-900 text-white p-6 rounded-2xl w-[90%] md:w-[60%] max-h-[90vh] overflow-y-auto border-2 border-cyan-600">
+        <h2 className="text-2xl font-bold mb-4 text-cyan-300">
+          {question?.id ? "✏️ Edit Question" : "➕ Add New Question"}
+        </h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-cyan-300 mb-2">Question Text</label>
+            <textarea
+              name="text"
+              value={form.text}
+              onChange={handleChange}
+              rows={3}
+              placeholder="Enter your question here..."
+              className="w-full p-3 rounded bg-gray-800 border border-cyan-600 focus:border-cyan-400 focus:outline-none text-white"
+              required
+            />
+          </div>
 
-        {/* Question text */}
-        <textarea
-          name="text"
-          value={form.text}
-          onChange={handleChange}
-          rows={3}
-          placeholder="Enter question"
-          className="w-full mb-3 p-2 rounded bg-gray-800 border border-gray-600"
-        />
-
-        {/* Options A-D */}
-        {["option_a", "option_b", "option_c", "option_d"].map((opt) => (
-          <input
-            key={opt}
-            name={opt}
-            value={form[opt]}
-            onChange={handleChange}
-            placeholder={opt.replace("_", " ").toUpperCase()}
-            className={`w-full mb-3 p-2 rounded bg-gray-800 border border-gray-600 ${
-              form.correct === opt ? "border-green-500 text-green-300 font-semibold" : ""
-            }`}
-          />
-        ))}
-
-        {/* Correct answer */}
-        <div className="mb-3">
-          <label className="block text-gray-300 mb-1">Correct Answer</label>
-          <select
-            name="correct"
-            value={form.correct}
-            onChange={handleChange}
-            className="w-full p-2 rounded bg-gray-800 border border-gray-600 text-white"
-          >
-            {["option_a", "option_b", "option_c", "option_d"].map((opt) => (
-              <option key={opt} value={opt}>
-                {opt.toUpperCase()}: {form[opt]}
-              </option>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {["option_a", "option_b", "option_c", "option_d"].map((option) => (
+              <div key={option}>
+                <label className="block text-cyan-300 mb-2">
+                  {option.toUpperCase().replace('_', ' ')}
+                </label>
+                <input
+                  type="text"
+                  name={option}
+                  value={form[option]}
+                  onChange={handleChange}
+                  placeholder={`Option ${option.slice(-1).toUpperCase()}`}
+                  className={`w-full p-3 rounded bg-gray-800 border ${
+                    form.correct === option ? "border-green-500" : "border-cyan-600"
+                  } focus:outline-none text-white`}
+                  required
+                />
+              </div>
             ))}
-          </select>
-        </div>
+          </div>
 
-        {/* Difficulty */}
-        <div className="mb-3">
-          <label className="block text-gray-300 mb-1">Difficulty</label>
-          <select
-            name="difficulty"
-            value={form.difficulty}
-            onChange={handleChange}
-            className="w-full p-2 rounded bg-gray-800 border border-gray-600 text-white"
-          >
-            {DIFFICULTY_OPTIONS.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-cyan-300 mb-2">Correct Answer</label>
+              <select
+                name="correct"
+                value={form.correct}
+                onChange={handleChange}
+                className="w-full p-3 rounded bg-gray-800 border border-cyan-600 focus:border-cyan-400 focus:outline-none text-white"
+                required
+              >
+                <option value="">Select correct option</option>
+                <option value="option_a">A: {form.option_a}</option>
+                <option value="option_b">B: {form.option_b}</option>
+                <option value="option_c">C: {form.option_c}</option>
+                <option value="option_d">D: {form.option_d}</option>
+              </select>
+            </div>
 
-        <div className="flex justify-end space-x-3 mt-4">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 bg-gray-600 rounded hover:bg-gray-500"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onSave(form)}
-            className="px-4 py-2 bg-green-600 rounded hover:bg-green-500"
-          >
-            Save
-          </button>
-        </div>
+            <div>
+              <label className="block text-cyan-300 mb-2">Difficulty</label>
+              <select
+                name="difficulty"
+                value={form.difficulty}
+                onChange={handleChange}
+                className="w-full p-3 rounded bg-gray-800 border border-cyan-600 focus:border-cyan-400 focus:outline-none text-white"
+              >
+                {DIFFICULTY_OPTIONS.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-6 py-2 bg-gray-600 rounded-lg hover:bg-gray-500 transition-colors text-white"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-green-600 rounded-lg hover:bg-green-500 transition-colors text-white"
+            >
+              {question?.id ? "Update Question" : "Add Question"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
 }
 
+function ViewQuestionsModal({ questions, onClose, onEdit, onDelete, onResetAll }) {
+  const [loading, setLoading] = useState(false);
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this question?")) return;
 
-/** ======View Questions=======  */
-function ViewQuestionsModal({ questions, onClose, onEdit, onDelete }) {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/questions/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Failed to delete question");
+
+      alert("✅ Question deleted successfully!");
+      onDelete();
+    } catch (error) {
+      console.error("Error deleting question:", error);
+      alert("❌ Failed to delete question");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-      <div className="bg-gray-900 text-white p-6 rounded-2xl max-h-[85vh] overflow-y-auto w-[90%] md:w-[70%] border-2 border-red-600 shadow-lg">
-        <h2 className="text-2xl font-bold mb-6 text-center text-rose-300">
-          📋 All Questions
-        </h2>
+      <div className="bg-gray-900 text-white p-6 rounded-2xl max-h-[85vh] overflow-y-auto w-[95%] md:w-[80%] border-2 border-cyan-600 shadow-lg">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-cyan-300">
+            📋 All Questions ({questions.length})
+          </h2>
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                if (window.confirm("This will delete ALL questions and reset IDs to 1. Continue?")) {
+                  try {
+                    setLoading(true);
+                    const res = await fetch(`${API_BASE}/questions/reset-all`, {
+                      method: "DELETE"
+                    });
+                    const data = await res.json();
+                    alert(data.message);
+                    onResetAll();
+                  } catch (error) {
+                    alert("Error resetting questions");
+                  } finally {
+                    setLoading(false);
+                  }
+                }
+              }}
+              disabled={loading}
+              className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white font-bold transition-colors disabled:bg-red-800"
+            >
+              {loading ? "🔄 Resetting..." : "🗑️ Reset All Questions"}
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-semibold transition-colors text-white"
+            >
+              Close
+            </button>
+          </div>
+        </div>
 
         {questions.length === 0 ? (
-          <p className="text-center text-gray-400">No questions found.</p>
+          <div className="text-center text-gray-400 py-8">
+            <div className="text-6xl mb-4">❓</div>
+            <p className="text-xl">No questions found.</p>
+            <p className="text-sm mt-2">Add questions using the buttons above</p>
+          </div>
         ) : (
-          <ul className="space-y-4">
-            {questions.map((q) => (
-              <li
-                key={q.id}
-                className="bg-gray-800 p-5 rounded-xl border border-gray-700 hover:border-rose-500 transition"
-              >
+          <div className="space-y-4">
+            {questions.map((q, index) => (
+              <div key={q.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-cyan-500 transition">
                 <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="font-semibold text-lg">{q.text}</p>
-                    <p className="text-sm text-gray-400">
-                      Difficulty: {q.difficulty || "General"}
-                    </p>
+                  <div className="flex-1">
+                    <p className="font-semibold text-lg mb-2 text-white">{index + 1}. {q.text}</p>
+                    <div className="flex gap-4 text-sm text-gray-400">
+                      <span>Difficulty: <span className="text-cyan-300 font-bold">{q.difficulty}</span></span>
+                      <span>ID: {q.id}</span>
+                      <span>Correct: <span className="text-green-400 font-bold">{q.correct?.toUpperCase()}</span></span>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-2 ml-4">
                     <button
                       onClick={() => onEdit(q)}
-                      className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium"
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium transition-colors text-white"
                     >
                       ✏️ Edit
                     </button>
                     <button
-                      onClick={() => onDelete(q.id)}
-                      className="px-3 py-1 bg-red-600 hover:bg-red-500 rounded text-sm font-medium"
+                      onClick={() => handleDelete(q.id)}
+                      disabled={loading}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-500 rounded text-sm font-medium transition-colors text-white disabled:bg-red-800"
                     >
                       🗑️ Delete
                     </button>
                   </div>
                 </div>
 
-               <ul className="space-y-2 ml-2">
-  {["option_a", "option_b", "option_c", "option_d"].map((opt) => {
-    const isCorrect = q.correct_text?.trim() === q[opt]?.trim(); // compare actual text
-    return (
-      <li
-        key={opt}
-        className={`px-4 py-2 rounded-lg border ${
-          isCorrect
-            ? "bg-green-600 border-green-400 text-white font-bold"
-            : "bg-gray-700 border-gray-600 text-gray-200"
-        }`}
-      >
-        {q[opt]}
-      </li>
-    );
-  })}
-</ul>
-
-
-
-
-
-              </li>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {["option_a", "option_b", "option_c", "option_d"].map((opt) => (
+                    <div
+                      key={opt}
+                      className={`p-2 rounded border ${
+                        q.correct === opt
+                          ? "bg-green-600 border-green-400 text-white font-bold"
+                          : "bg-gray-700 border-gray-600 text-gray-200"
+                      }`}
+                    >
+                      <span className="font-bold">{opt.slice(-1).toUpperCase()}:</span> {q[opt]}
+                    </div>
+                  ))}
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
+      </div>
+    </div>
+  );
+}
 
-        <div className="text-center mt-6">
+function ManualQuestionModal({ onClose, onAdded }) {
+  const [form, setForm] = useState({
+    text: "",
+    option_a: "",
+    option_b: "",
+    option_c: "",
+    option_d: "",
+    correct: "",
+    difficulty: "Medium",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setError("");
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!form.text || !form.option_a || !form.option_b || !form.option_c || !form.option_d || !form.correct) {
+      setError("Please fill all fields");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/questions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to add question");
+      }
+
+      alert("✅ Question added successfully!");
+      if (onAdded) onAdded(data);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 border-2 border-cyan-600 rounded-xl p-6 w-full max-w-2xl relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-cyan-300 hover:text-cyan-100 text-3xl font-bold"
+        >
+          &times;
+        </button>
+
+        <h2 className="text-2xl font-extrabold text-cyan-300 mb-4 text-center">
+          ➕ Add New Question
+        </h2>
+
+        {error && <div className="text-red-400 mb-4 p-3 bg-red-900 rounded">{error}</div>}
+
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <label className="block text-cyan-300 mb-2">Question Text</label>
+            <textarea
+              name="text"
+              value={form.text}
+              onChange={handleChange}
+              rows={3}
+              placeholder="Enter your question here..."
+              className="w-full p-3 bg-gray-700 border-2 border-cyan-600 rounded-lg text-white focus:outline-none focus:border-cyan-400"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {["option_a", "option_b", "option_c", "option_d"].map((option) => (
+              <div key={option}>
+                <label className="block text-cyan-300 mb-2">
+                  {option.replace('_', ' ').toUpperCase()}
+                </label>
+                <input
+                  type="text"
+                  name={option}
+                  value={form[option]}
+                  onChange={handleChange}
+                  placeholder={`Option ${option.slice(-1).toUpperCase()}`}
+                  className="w-full p-3 bg-gray-700 border-2 border-cyan-600 rounded-lg text-white focus:outline-none focus:border-cyan-400"
+                  required
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-cyan-300 mb-2">Correct Answer</label>
+              <select
+                name="correct"
+                value={form.correct}
+                onChange={handleChange}
+                className="w-full p-3 bg-gray-700 border-2 border-cyan-600 rounded-lg text-white focus:outline-none focus:border-cyan-400"
+                required
+              >
+                <option value="">Select correct option</option>
+                <option value="option_a">Option A</option>
+                <option value="option_b">Option B</option>
+                <option value="option_c">Option C</option>
+                <option value="option_d">Option D</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-cyan-300 mb-2">Difficulty</label>
+              <select
+                name="difficulty"
+                value={form.difficulty}
+                onChange={handleChange}
+                className="w-full p-3 bg-gray-700 border-2 border-cyan-600 rounded-lg text-white focus:outline-none focus:border-cyan-400"
+              >
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-between pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition-colors"
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save Question"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function UploadQsModal({ onClose, onInserted }) {
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleFileSelect = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
+        setError("Please select a CSV file");
+        return;
+      }
+      setFile(selectedFile);
+      setError("");
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      setError("Please select a file first");
+      return;
+    }
+
+    setUploading(true);
+    setError("");
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch(`${API_BASE}/questions/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Upload failed");
+      }
+
+      alert(`✅ Upload successful!\nInserted: ${data.inserted}\nTotal: ${data.total}\nErrors: ${data.errors?.length || 0}`);
+      
+      if (onInserted) {
+        onInserted(data);
+      }
+      
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 border-2 border-cyan-600 rounded-xl p-6 max-w-md w-full relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-cyan-300 hover:text-cyan-100 text-3xl font-bold"
+        >
+          &times;
+        </button>
+
+        <h2 className="text-2xl font-extrabold text-cyan-300 mb-4 text-center">
+          📤 Upload Questions CSV
+        </h2>
+
+        <div className="space-y-4">
+          <div className="border-2 border-dashed border-cyan-600 rounded-lg p-6 text-center">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="csv-upload"
+            />
+            <label
+              htmlFor="csv-upload"
+              className="cursor-pointer block text-cyan-300 hover:text-cyan-200"
+            >
+              {file ? `📄 ${file.name}` : "📁 Click to select CSV file"}
+            </label>
+            {file && (
+              <p className="text-sm text-gray-400 mt-2">
+                Size: {(file.size / 1024).toFixed(1)} KB
+              </p>
+            )}
+          </div>
+
+          {error && <div className="text-red-400 text-sm bg-red-900 p-2 rounded">{error}</div>}
+
+          <div className="text-sm text-gray-400 bg-gray-900 p-3 rounded">
+            <p className="font-bold text-cyan-300 mb-1">CSV Format:</p>
+            <p><code>question, option_a, option_b, option_c, option_d, correct, difficulty</code></p>
+            <p className="mt-2 text-xs">Example: "What is compiler?", "Option A", "Option B", "Option C", "Option D", "A", "Easy"</p>
+          </div>
+
+          <div className="flex justify-between">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+              disabled={uploading}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleUpload}
+              disabled={uploading || !file}
+              className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition-colors disabled:bg-cyan-800"
+            >
+              {uploading ? "📤 Uploading..." : "📤 Upload"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// FIXED: Enhanced ViewRankModal in TeacherGameManagementPage
+function ViewRankModal({ gameTitle, ranks, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 border-2 border-cyan-600 rounded-xl p-6 max-w-6xl w-full relative max-h-[90vh] overflow-y-auto">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-cyan-300 hover:text-cyan-100 text-3xl font-bold"
+        >
+          &times;
+        </button>
+        <h2 className="text-3xl font-extrabold text-cyan-300 mb-4 text-center">
+          🏆 Leaderboard - {gameTitle}
+        </h2>
+        
+        {ranks.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-white min-w-full">
+              <thead>
+                <tr className="bg-cyan-700">
+                  <th className="p-3 text-left">Rank</th>
+                  <th className="p-3 text-left">Student</th>
+                  <th className="p-3 text-left">Email</th>
+                  <th className="p-3 text-right">Total Score</th>
+                  <th className="p-3 text-right">Questions</th>
+                  <th className="p-3 text-right">Correct</th>
+                  <th className="p-3 text-right">Accuracy</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ranks.map((player, index) => (
+                  <tr key={player.user_id} className="border-b border-gray-700 hover:bg-gray-700">
+                    <td className="p-3 font-bold text-cyan-300">
+                      {index + 1}
+                      {index === 0 && " 🥇"}
+                      {index === 1 && " 🥈"} 
+                      {index === 2 && " 🥉"}
+                    </td>
+                    <td className="p-3 font-medium text-white">
+                      {player.display_name || "Anonymous"}
+                    </td>
+                    <td className="p-3 text-cyan-200 text-sm">
+                      {player.email}
+                    </td>
+                    <td className="p-3 text-right font-bold text-cyan-300">
+                      {formatScore(player.total_score)} {/* 🔧 FIXED */}
+                    </td>
+                    <td className="p-3 text-right text-gray-300">
+                      {player.questions_answered || 0}
+                    </td>
+                    <td className="p-3 text-right text-green-400">
+                      {player.correct_answers || 0}
+                    </td>
+                    <td className="p-3 text-right font-bold text-green-400">
+                      {formatAccuracy(player.accuracy)}% {/* 🔧 FIXED */}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center text-gray-400 py-8">
+            <div className="text-6xl mb-4">📊</div>
+            <p className="text-xl">No game data available yet</p>
+            <p className="text-sm mt-2">Students need to play the game to see rankings</p>
+          </div>
+        )}
+        
+        <div className="mt-6 text-center">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-rose-600 hover:bg-rose-500 rounded-xl font-semibold"
+            className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white font-bold transition-colors"
           >
             Close
           </button>
@@ -268,494 +751,78 @@ function ViewQuestionsModal({ questions, onClose, onEdit, onDelete }) {
   );
 }
 
-
-/* ================= Manual Add Question (one by one) ================= */
-function ManualQuestionModal({ gameTitle, onClose, onAdded }) {
-  const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"]; // <-- dropdown options
-
-  const [question, setQuestion] = useState("");
-  const [options, setOptions] = useState(["", "", "", ""]);
-  const [correct, setCorrect] = useState("");
-  const [difficulty, setDifficulty] = useState("Medium");
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
-
-  const [questions, setQuestions] = useState([]);
-const [showQuestionsModal, setShowQuestionsModal] = useState(false);
-
-
-  const handleOptionChange = (i, v) => {
-    const temp = [...options];
-    temp[i] = v;
-    setOptions(temp);
-  };
-
-  const clearForm = () => {
-    setQuestion("");
-    setOptions(["", "", "", ""]);
-    setCorrect("");
-    setDifficulty("Medium");
-    setErr("");
-  };
-
-  const handleSave = async (e) => {
-    e?.preventDefault?.();
-    setErr("");
-
-    if (!question || options.some((o) => !o) || !correct) {
-      setErr("Please fill all fields and select the correct answer.");
-      return;
-    }
-    if (!options.includes(correct)) {
-      setErr("Correct answer must exactly match one of the options.");
-      return;
-    }
-    if (!DIFFICULTY_OPTIONS.includes(difficulty)) {
-      setErr("Please pick a valid difficulty.");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const res = await fetch(`${API_BASE}/questions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: question,
-          option_a: options[0],
-          option_b: options[1],
-          option_c: options[2],
-          option_d: options[3],
-          correct,
-          difficulty, // now guaranteed from dropdown
-          // add game_id/game_code if your backend supports it
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
-
-      if (typeof onAdded === "function") onAdded(data);
-      alert("✅ Question added");
-      clearForm();
-    } catch (e2) {
-      setErr(e2.message || "Server error while adding question.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 border-2 border-red-600 rounded-xl p-6 w-full max-w-2xl relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-rose-300 hover:text-rose-100 text-3xl font-bold"
-        >
-          &times;
-        </button>
-        <h2 className="text-2xl font-extrabold text-rose-300 mb-4 text-center">
-          ➕ Add Question — {gameTitle}
-        </h2>
-
-        {err && <div className="text-red-400 mb-3">{err}</div>}
-
-        <form onSubmit={handleSave} className="space-y-3">
-          <textarea
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Enter question"
-            className="w-full p-3 bg-gray-700 border-2 border-red-600 rounded-lg text-white"
-            rows={3}
-            required
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {options.map((opt, i) => (
-              <input
-                key={i}
-                value={opt}
-                onChange={(e) => handleOptionChange(i, e.target.value)}
-                placeholder={`Option ${String.fromCharCode(65 + i)} (A/B/C/D)`}
-                className="w-full p-2 bg-gray-700 border-2 border-red-600 rounded-lg text-white"
-                required
-              />
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
-            <input
-              value={correct}
-              onChange={(e) => setCorrect(e.target.value)}
-              placeholder="Correct option(Eg:option_a)"
-              className="w-full p-2 bg-gray-700 border-2 border-red-600 rounded-lg text-white md:col-span-2"
-              required
-            />
-
-            {/* ---- DROPDOWN instead of typing ---- */}
-            <select
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value)}
-              className="w-full p-2 bg-gray-700 border-2 border-red-600 rounded-lg text-white"
-              aria-label="Select difficulty"
-            >
-              {DIFFICULTY_OPTIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex justify-between mt-2">
-            <button
-              type="button"
-              onClick={clearForm}
-              className="px-6 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white"
-              disabled={saving}
-            >
-              Clear
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold"
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save question"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-/* ================= CSV Upload ================= */
-function UploadQsModal({ gameTitle, onClose, onInserted }) {
-  const [file, setFile] = useState(null);
-  const [dragOver, setDragOver] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const inputRef = useRef();
-
-  const reset = () => {
-    setFile(null);
-    setLoading(false);
-    setErrorMsg("");
-  };
-  
-  useEffect(() => () => reset(), []);
-
-  const handleFile = (f) => {
-    setErrorMsg("");
-    if (!f) return setFile(null);
-    if (!f.name.toLowerCase().endsWith(".csv") && f.type !== "text/csv") {
-      setErrorMsg("Please upload a CSV file.");
-      return;
-    }
-    setFile(f);
-  };
-
-  const onDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOver(false);
-    const f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f) handleFile(f);
-  };
-
-  const onSelectClicked = () => inputRef.current?.click();
-
-  const handleUpload = async (e) => {
-    e?.preventDefault?.();
-    setErrorMsg("");
-    if (!file) return setErrorMsg("No file selected.");
-
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("game_name", gameTitle || "Wisdom Warfare");
-
-      const endpoints = [
-        `${API_BASE}/questions/bulk`,
-        `${API_BASE}/api/questions/bulk`,
-        `${API_BASE}/questions/upload`,
-        `${API_BASE}/api/questions/upload`,
-      ];
-
-      let data = null;
-      let lastErr = null;
-
-      for (const url of endpoints) {
-        try {
-          const res = await fetch(url, { method: "POST", body: formData });
-          const text = await res.text();
-          let parsed = {};
-          try {
-            parsed = text ? JSON.parse(text) : {};
-          } catch {
-            parsed = { raw: text };
-          }
-          if (res.ok) {
-            data = parsed;
-            break;
-          } else {
-            lastErr = parsed?.error || parsed?.message || parsed?.raw || `HTTP ${res.status}`;
-          }
-        } catch (err) {
-          lastErr = err.message || String(err);
-        }
-      }
-
-      if (!data) {
-        setErrorMsg(`Upload failed: ${lastErr || "No working endpoint found"}`);
-        setLoading(false);
-        return;
-      }
-
-      const inserted = data.inserted ?? data.insertedCount ?? 0;
-      const skipped = data.skippedCount ?? data.skipped ?? 0;
-
-      if (typeof onInserted === "function") onInserted({ inserted, skipped, raw: data });
-
-      alert(`✅ Upload succeeded. Inserted: ${inserted}. Skipped: ${skipped}.`);
-      setLoading(false);
-      onClose();
-    } catch (err) {
-      console.error("CSV upload error:", err);
-      setErrorMsg("Network or server error while uploading. See console for details.");
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 border-2 border-red-600 rounded-xl p-6 max-w-2xl w-full relative shadow-3xl">
-        <button
-          onClick={() => {
-            reset();
-            onClose();
-          }}
-          className="absolute top-4 right-4 text-rose-300 hover:text-rose-100 text-3xl font-bold"
-        >
-          &times;
-        </button>
-
-        <h2 className="text-2xl font-extrabold text-rose-300 mb-4 text-center">
-          Upload Questions — {gameTitle}
-        </h2>
-
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={onDrop}
-          className={`w-full p-6 mb-4 rounded-lg border-2 border-dashed ${
-            dragOver ? "border-rose-400 bg-gray-700" : "border-gray-600 bg-gray-800"
-          } text-center`}
-          style={{ cursor: "pointer" }}
-          onClick={onSelectClicked}
-        >
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            onChange={(e) => handleFile(e.target.files && e.target.files[0])}
-          />
-          {file ? (
-            <div>
-              <div className="text-white font-semibold">{file.name}</div>
-              <div className="text-sm text-gray-300 mt-1">{(file.size / 1024).toFixed(1)} KB</div>
-              <div className="text-xs text-gray-400 mt-2">Click or drag another file to replace</div>
-            </div>
-          ) : (
-            <div>
-              <div className="text-rose-200 font-medium">Click or drag a CSV file here</div>
-              <div className="text-sm text-gray-400 mt-2">
-                CSV must include columns like: <code>question,a,b,c,d,correct</code> (header names are flexible).
-              </div>
-            </div>
-          )}
-        </div>
-
-        {errorMsg && <div className="text-red-400 mb-3">{errorMsg}</div>}
-
-        <div className="flex justify-between gap-4">
-          <button
-            onClick={() => {
-              reset();
-              onClose();
-            }}
-            disabled={loading}
-            className="px-6 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white"
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={handleUpload}
-            disabled={loading}
-            className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold"
-          >
-            {loading ? "Uploading..." : "Upload & Insert"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ================= Per-game leaderboard ================= */
-function ViewRankModal({ gameTitle, ranks, onClose }) {
-  if (!ranks) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 border-2 border-red-600 rounded-xl p-6 max-w-lg w-full relative shadow-3xl">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-rose-300 hover:text-rose-100 text-3xl font-bold"
-        >
-          &times;
-        </button>
-        <h2 className="text-3xl font-extrabold text-rose-300 mb-4 text-center">Ranks for {gameTitle}</h2>
-        <ol className="text-gray-200 text-sm leading-relaxed max-h-80 overflow-y-auto">
-          {ranks.length > 0 ? (
-            ranks.map((p, i) => (
-              <li key={i} className="flex justify-between items-center bg-gray-700 p-2 rounded-lg mb-1">
-                <span className="font-semibold text-rose-200"> {i + 1}. {p.display_name || p.username || "Unknown"} (ID-{p.id || p.user_id || "—"})</span>
-                <span className="font-semibold text-rose-200">{p.score ?? 0} pts</span>
-              </li>
-            ))
-          ) : (
-            <p>No ranks yet.</p>
-          )}
-        </ol>
-      </div>
-    </div>
-  );
-}
-
-/* ================= Card ================= */
 function TeacherGameCard({
   title,
   icon,
-  gameCode,
-  onGenerateCode,
   onUploadQs,
   onManualAdd,
-  onEmptyQuestions,
   onViewRank,
+  onViewQuestions,
   onDownloadResult,
-  onViewQuestions, // already in props
 }) {
-  const [showUploadStudents, setShowUploadStudents] = useState(false);
   return (
-    <div className="bg-gray-900 rounded-3xl p-6 border-2 border-red-600">
-      <h3 className="text-3xl font-extrabold text-rose-300 mb-4 text-center">
+    <div className="bg-gray-900 rounded-3xl p-6 border-2 border-cyan-600 hover:border-cyan-400 hover-lift transition-all duration-300">
+      <h3 className="text-3xl font-extrabold text-cyan-300 mb-4 text-center">
         {icon} {title}
       </h3>
 
-      {/* game code block (only shows for Wisdom Warfare) */}
-      {title === "Wisdom Warfare" && (
-        <div className="bg-gray-800 rounded-xl p-3 border border-red-500/40 mb-4">
-          <div className="text-sm text-rose-200 mb-1">Your Game Code</div>
-          <div className="flex items-center justify-between">
-            <div className="text-xl font-black tracking-widest text-white">
-              {gameCode || "— — — — — —"}
-            </div>
-            <button
-              onClick={onGenerateCode}
-              className="ml-3 px-3 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-sm"
-            >
-              {gameCode ? "Refresh Code" : "Generate Code"}
-            </button>
-          </div>
-        </div>
-      )}
+      <div className="space-y-3">
+        <button
+          onClick={onManualAdd}
+          className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold transition-colors shadow-lg"
+        >
+          ✍️ Add Question
+        </button>
+        
+        <button
+          onClick={onUploadQs}
+          className="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition-colors shadow-lg"
+        >
+          📤 Upload CSV
+        </button>
 
-      <div className="grid grid-cols-2 gap-3 mt-4">
+        <button
+          onClick={onViewQuestions}
+          className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors shadow-lg"
+        >
+          👁️ View Questions
+        </button>
+
         {title === "Wisdom Warfare" && (
           <>
-          
-               <button
-        onClick={() => setShowUploadStudents(true)}
-        className="col-span-2 py-2 rounded-xl bg-red-600 text-white hover:bg-red-500"
-      >
-        ⬆ Upload Student details
-      </button>
+            <button
+              onClick={onViewRank}
+              className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold transition-colors shadow-lg"
+            >
+              📊 View Rank
+            </button>
 
-      {showUploadStudents && <UploadStudentsSection />}
             <button
-              onClick={onManualAdd}
-              className="col-span-2 py-2 rounded-xl bg-amber-500 text-black font-bold hover:bg-amber-400"
+              onClick={onDownloadResult}
+              className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold transition-colors shadow-lg"
             >
-              ✍️ Add Question (Manual)
-            </button>
-            
-            
-            <button
-              onClick={onUploadQs}
-              className="col-span-2 py-2 rounded-xl bg-red-600 text-white hover:bg-red-500"
-            >
-              ⬆ Upload Questions
-            </button>
-            <button
-              onClick={onEmptyQuestions}
-              className="col-span-2 py-2 rounded-xl bg-gray-700 text-rose-300 hover:bg-gray-600"
-              title="Remove all questions linked to this code"
-            >
-              🧹 Empty Questions (this code)
+              📥 Download Results
             </button>
           </>
         )}
-
-        {/* Add View Questions button */}
-        {onViewQuestions && (
-          <button
-            onClick={onViewQuestions}
-            className="col-span-2 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500"
-          >
-             View Questions
-          </button>
-        )}
-
-        <button
-          onClick={onViewRank}
-          className="py-2 rounded-xl bg-gray-700 text-rose-300 hover:bg-gray-600"
-        >
-          📊 View Rank
-        </button>
-        <button
-          onClick={onDownloadResult}
-          className="py-2 rounded-xl bg-gray-700 text-rose-300 hover:bg-gray-600"
-        >
-          ⬇ Download Result
-        </button>
       </div>
     </div>
   );
 }
 
-/* ================= Main Page ================= */
 export default function TeacherGameManagementPage() {
   const [showTopPlayersModal, setShowTopPlayersModal] = useState(false);
   const [showUploadQsModal, setShowUploadQsModal] = useState(false);
   const [showManualQsModal, setShowManualQsModal] = useState(false);
   const [showViewRankModal, setShowViewRankModal] = useState(false);
+  const [showQuestionsModal, setShowQuestionsModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
-  const [currentTeacherGameTitle, setCurrentTeacherGameTitle] = useState("");
   const [topPlayers, setTopPlayers] = useState([]);
-  const [ranks, setRanks] = useState([]);
   const [questions, setQuestions] = useState([]);
-const [showQuestionsModal, setShowQuestionsModal] = useState(false);
-
-  // Unique code for this teacher's Wisdom Warfare session
-  const [wwGameCode, setWwGameCode] = useState("");
-  const [editQuestion, setEditQuestion] = useState(null);
-
+  const [wisdomWarfareRanks, setWisdomWarfareRanks] = useState([]);
+  const [editingQuestion, setEditingQuestion] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const games = [
     { name: "Wisdom Warfare", icon: "🧠" },
@@ -763,287 +830,320 @@ const [showQuestionsModal, setShowQuestionsModal] = useState(false);
     { name: "Escape Room", icon: "🗝" },
     { name: "A. Crossword", icon: "📝" },
   ];
-  /*fetch questions after edit */
-  
 
-const fetchQuestions = async () => {
-  try {
-    const res = await axios.get(`${API_BASE}/questions`);
-    let data = res.data;
-
-    // Convert correct key (like "option_a") to actual option text
-    data = data.map(q => ({
-      ...q,
-      correct_text: q[q.correct] || "", // get the actual text of the correct answer
-    }));
-
-    setQuestions(data);
-  } catch (error) {
-    console.error("Error fetching questions:", error);
-  }
-};
-
-
-// Run it once when the page loads
-useEffect(() => {
-  fetchQuestions();
-}, []);
-
-/* Edit Question */
- 
-const [editingQuestion, setEditingQuestion] = useState(null);
-const [showEditModal, setShowEditModal] = useState(false);
-
-// ✅ Edit handler
-const handleEditQuestion = (question) => {
-  console.log("Editing:", question);
-  setEditingQuestion(question);
-  setShowEditModal(true);
-};
-
-// ✅ Save edited question
-const handleSaveEdit = async (updatedQuestion) => {
-  try {
-    await axios.put(`http://localhost:4000/questions/${updatedQuestion.id}`, updatedQuestion);
-    alert("✅ Question updated successfully!");
-    fetchQuestions(); // refresh the list
-    setShowEditModal(false);
-  } catch (error) {
-    console.error("Error updating question:", error);
-    alert("❌ Failed to update question");
-  }
-};
-
-
-const handleDeleteQuestion = async (id) => {
-  if (!window.confirm("Are you sure you want to delete this question?")) return;
-
-  try {
-    const res = await fetch(`http://localhost:4000/questions/${id}`, {
-      method: "DELETE",
-    });
-    if (!res.ok) throw new Error("Failed to delete");
-
-    setQuestions((prev) => prev.filter((q) => q.id !== id));
-    alert("Question deleted successfully!");
-  } catch (err) {
-    console.error(err);
-    alert("Error deleting question");
-  }
-};
-
-/* handle viewquestion */
-const handleViewQuestions = async () => {
-  try {
-    const res = await fetch(`${API_BASE}/questions`);
-    if (!res.ok) throw new Error("Failed to fetch questions");
-    let data = await res.json();
-
-    // Normalize correct answer to actual text
-    data = data.map(q => ({
-      ...q,
-      correct_text: q[q.correct] || "", // q.correct might be "option_a"
-    }));
-
-    setQuestions(data);
-    setShowQuestionsModal(true);
-  } catch (err) {
-    console.error(err);
-    alert("Could not load questions");
-  }
-};
-
-
-/*   */
-  /* --------------- helpers to identify teacher --------------- */
-  const getTeacherIdOrUid = () => {
-    // we try multiple keys to be resilient
-    return (
-      localStorage.getItem("user_id") ||
-      localStorage.getItem("uid") ||
-      sessionStorage.getItem("user_id") ||
-      sessionStorage.getItem("uid") ||
-      null
-    );
-  };
-
-  /* --------------- load global top players --------------- */
-  useEffect(() => {
-    if (!showTopPlayersModal) return;
-    fetch(`${API_BASE}/leaderboard?limit=10`)
-      .then((r) => r.json())
-      .then(setTopPlayers)
-      .catch((err) => {
-        console.error("Error loading global leaderboard:", err);
-        setTopPlayers([]);
-      });
-  }, [showTopPlayersModal]);
-
-  /* --------------- fetch existing or create new WW code --------------- */
-  const fetchOrCreateWwCode = async () => {
-    const teacher = getTeacherIdOrUid();
-    if (!teacher) {
-      console.warn("No teacher id/uid in storage.");
-      return;
-    }
-
+  // Fetch all questions
+  const fetchQuestions = async () => {
     try {
-      // 1) try to find latest session
-      const q = new URLSearchParams({ game_name: "Wisdom Warfare" }).toString();
-      const res = await fetch(`${API_BASE}/teacher/my-games?${q}`);
-      if (res.ok) {
-        const arr = await res.json().catch(() => []);
-        if (Array.isArray(arr) && arr.length > 0) {
-          // pick most recent
-          const latest = arr[0];
-          if (latest?.game_code) {
-            setWwGameCode(latest.game_code);
-            return;
-          }
-        }
-      }
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/questions`);
+      if (!res.ok) throw new Error("Failed to fetch questions");
+      const data = await res.json();
+      setQuestions(data.questions || data);
+    } catch (error) {
+      console.error("Error fetching questions:", error);
+      alert("Error loading questions");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // 2) otherwise, create a new one
-      const createRes = await fetch(`${API_BASE}/teacher/new-game`, {
+  // Fetch leaderboard
+  const fetchLeaderboard = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/leaderboard?limit=50`);
+      if (!res.ok) throw new Error("Failed to fetch leaderboard");
+      const data = await res.json();
+      setTopPlayers(data);
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch Wisdom Warfare specific ranks
+  const fetchWisdomWarfareRanks = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/game-results/wisdom-warfare`);
+      if (!res.ok) throw new Error("Failed to fetch game results");
+      const data = await res.json();
+      setWisdomWarfareRanks(data.results || []);
+    } catch (error) {
+      console.error("Error fetching Wisdom Warfare ranks:", error);
+      setWisdomWarfareRanks([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle download results
+  const handleDownloadResults = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/download-results/wisdom-warfare`);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `wisdom-warfare-results-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      alert('✅ Results downloaded successfully!');
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('❌ Failed to download results');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Clean up duplicate users
+  const cleanupDuplicateUsers = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/admin/cleanup-users`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacher: teacher, game_name: "Wisdom Warfare" }),
       });
-      const data = await createRes.json().catch(() => ({}));
-      if (!createRes.ok) throw new Error(data?.error || data?.message || "Failed to create game code");
-      if (data?.game_code) setWwGameCode(data.game_code);
-    } catch (err) {
-      console.error("fetchOrCreateWwCode error:", err);
+      const data = await res.json();
+      alert(data.message);
+      fetchLeaderboard();
+    } catch (error) {
+      alert("Error cleaning up users");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Start game session
+  const startGameSession = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/admin/start-game`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ ${data.message}\nSession ID: ${data.sessionId}`);
+      } else {
+        alert(`❌ ${data.error}`);
+      }
+    } catch (error) {
+      alert("Error starting game session");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reload questions
+  const reloadQuestions = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/admin/reload-questions`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      alert(data.message);
+      fetchQuestions();
+    } catch (error) {
+      alert("Error reloading questions");
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchOrCreateWwCode();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchQuestions();
+    fetchLeaderboard();
   }, []);
 
-  /* --------------- actions --------------- */
-  const handleGenerateCode = async () => {
-    const teacher = getTeacherIdOrUid();
-    if (!teacher) return alert("No teacher identity found. Please sign in as a teacher.");
+  useEffect(() => {
+    if (showTopPlayersModal) {
+      fetchLeaderboard();
+    }
+  }, [showTopPlayersModal]);
+
+  const handleEditQuestion = (question) => {
+    setEditingQuestion(question);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (updatedQuestion) => {
     try {
-      const res = await fetch(`${API_BASE}/teacher/new-game`, {
-        method: "POST",
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/questions/${editingQuestion.id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacher, game_name: "Wisdom Warfare" }),
+        body: JSON.stringify(updatedQuestion),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || data?.message || "Failed to create/refresh game code");
-      setWwGameCode(data?.game_code || "");
-      alert(`🎟️ Game code: ${data?.game_code || "(none)"}`);
-    } catch (err) {
-      console.error(err);
-      alert(err.message || "Could not generate code.");
+
+      if (!res.ok) throw new Error("Failed to update question");
+
+      alert("✅ Question updated successfully!");
+      fetchQuestions();
+      setShowEditModal(false);
+      setEditingQuestion(null);
+    } catch (error) {
+      console.error("Error updating question:", error);
+      alert("❌ Failed to update question");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleUploadQsClick = (gameTitle) => {
-    setCurrentTeacherGameTitle(gameTitle);
-    setShowUploadQsModal(true);
-  };
+  const handleDeleteQuestion = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this question?")) return;
 
-  const handleManualAddClick = (gameTitle) => {
-    setCurrentTeacherGameTitle(gameTitle);
-    setShowManualQsModal(true);
-  };
-
-  const handleEmptyQuestions = async () => {
-    if (!wwGameCode) return alert("No game code yet.");
-    const teacher = getTeacherIdOrUid();
-    if (!teacher) return alert("No teacher identity found.");
-
-    if (!window.confirm(`This will delete ALL questions linked to code ${wwGameCode}. Continue?`)) {
-      return;
-    }
     try {
-      const res = await fetch(`${API_BASE}/teacher/wipe-questions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacher, game_code: wwGameCode }),
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/questions/${id}`, {
+        method: "DELETE",
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || data?.message || "Failed to wipe questions");
-      alert("🧹 Questions cleared for this code.");
-    } catch (err) {
-      console.error(err);
-      alert(err.message || "Could not wipe questions.");
+
+      if (!res.ok) throw new Error("Failed to delete question");
+
+      alert("✅ Question deleted successfully!");
+      fetchQuestions();
+    } catch (error) {
+      console.error("Error deleting question:", error);
+      alert("❌ Failed to delete question");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleViewRankClick = async (gameTitle) => {
-    setCurrentTeacherGameTitle(gameTitle);
-    try {
-      // per your earlier server, this returns per-game (by name) leaderboard
-      const res = await fetch(`${API_BASE}/leaderboard?game_name=${encodeURIComponent(gameTitle)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setRanks(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Error fetching ranks:", err);
-      setRanks([]);
+  const handleViewRank = async (gameName) => {
+    if (gameName === "Wisdom Warfare") {
+      await fetchWisdomWarfareRanks();
+      setShowViewRankModal(true);
+    } else {
+      alert(`🏆 Rankings for ${gameName} will be available soon!`);
     }
-    setShowViewRankModal(true);
   };
 
-  const handleUploadInserted = ({ inserted, skipped }) => {
-    console.log(`Inserted ${inserted} questions, skipped ${skipped}`);
+  const handleDownloadResult = (gameName) => {
+    if (gameName === "Wisdom Warfare") {
+      handleDownloadResults();
+    } else {
+      alert(`📥 Download for ${gameName} will be available soon!`);
+    }
+  };
+
+  const handleUploadInserted = (data) => {
+    console.log("Upload completed:", data);
+    fetchQuestions();
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-950 via-red-900 to-rose-950 flex flex-col items-center p-4">
-      <h1 className="text-5xl font-black text-rose-400 mb-10 text-center">
-        ⚔ INTERACTIVE GAMIFIED LEARNING SYSTEM
-      </h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-cyan-900 to-gray-900 flex flex-col items-center p-6">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-5xl font-black text-cyan-400 mb-4 glow-text">
+          ⚔ TEACHER DASHBOARD
+        </h1>
+        <p className="text-xl text-cyan-200">Manage Games & Content</p>
+      </div>
 
-      {/* Top players button */}
-      <div className="mb-8">
+      {/* Admin Controls */}
+      <div className="flex flex-wrap gap-4 mb-8 justify-center">
         <button
           onClick={() => setShowTopPlayersModal(true)}
-          className="px-8 py-3 rounded-lg bg-gray-700 text-rose-300 hover:bg-gray-600 font-bold text-lg"
+          disabled={loading}
+          className="px-6 py-3 rounded-lg bg-cyan-600 text-white hover:bg-cyan-500 font-bold transition-colors disabled:bg-cyan-800"
         >
-          🏆 View Global Top Players
+          🏆 View Global Leaderboard
+        </button>
+        <button
+          onClick={startGameSession}
+          disabled={loading}
+          className="px-6 py-3 rounded-lg bg-green-600 text-white hover:bg-green-500 font-bold transition-colors disabled:bg-green-800"
+        >
+          🎮 Start Game Session
+        </button>
+        <button
+          onClick={reloadQuestions}
+          disabled={loading}
+          className="px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-500 font-bold transition-colors disabled:bg-blue-800"
+        >
+          🔄 Reload Questions
+        </button>
+        <button
+          onClick={cleanupDuplicateUsers}
+          disabled={loading}
+          className="px-6 py-3 rounded-lg bg-orange-600 text-white hover:bg-orange-500 font-bold transition-colors disabled:bg-orange-800"
+        >
+          🔧 Cleanup Users
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl w-full">
-        {[
-          { name: "Wisdom Warfare", icon: "⚔" },
-          { name: "Mystery Spinner", icon: "🎡" },
-          { name: "Escape Room", icon: "🗝" },
-          { name: "A. Crossword", icon: "📝" },
-        ].map((g) => (
+      {/* Upload Students Section */}
+      <div className="mb-8 w-full max-w-4xl">
+        <UploadStudentsSection />
+      </div>
+
+      {/* Game Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl w-full mb-12">
+        {games.map((game) => (
           <TeacherGameCard
-            key={g.name}
-            title={g.name}
-            icon={g.icon}
-            gameCode={g.name === "Wisdom Warfare" ? wwGameCode : undefined}
-            onGenerateCode={g.name === "Wisdom Warfare" ? handleGenerateCode : undefined}
-            onManualAdd={() => handleManualAddClick(g.name)}
-            onUploadQs={() => handleUploadQsClick(g.name)}
-            onEmptyQuestions={g.name === "Wisdom Warfare" ? handleEmptyQuestions : undefined}
-            onViewRank={() => handleViewRankClick(g.name)}
-           onViewQuestions={handleViewQuestions} 
-            onDownloadResult={() => alert("Downloading result...")}
+            key={game.name}
+            title={game.name}
+            icon={game.icon}
+            onManualAdd={() => setShowManualQsModal(true)}
+            onUploadQs={() => setShowUploadQsModal(true)}
+            onViewRank={() => handleViewRank(game.name)}
+            onViewQuestions={() => {
+              fetchQuestions();
+              setShowQuestionsModal(true);
+            }}
+            onDownloadResult={() => handleDownloadResult(game.name)}
           />
         ))}
       </div>
-          
 
-      {/* Logout button */}
-      <div className="w-full flex justify-center mt-12 mb-6">
+      {/* Stats Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl mb-8">
+        <div className="bg-gray-800 p-6 rounded-lg border-2 border-cyan-600 text-center">
+          <div className="text-3xl font-bold text-cyan-400 mb-2">{questions.length}</div>
+          <div className="text-cyan-200">Total Questions</div>
+        </div>
+        <div className="bg-gray-800 p-6 rounded-lg border-2 border-green-600 text-center">
+          <div className="text-3xl font-bold text-green-400 mb-2">{topPlayers.length}</div>
+          <div className="text-green-200">Active Students</div>
+        </div>
+        <div className="bg-gray-800 p-6 rounded-lg border-2 border-purple-600 text-center">
+          <div className="text-3xl font-bold text-purple-400 mb-2">{wisdomWarfareRanks.length}</div>
+          <div className="text-purple-200">Game Participants</div>
+        </div>
+      </div>
+
+      {/* Logout Button */}
+      <div className="w-full flex justify-center">
         <button
           onClick={() => (window.location.href = "/")}
-          className="px-10 py-4 rounded-xl bg-red-600 text-white hover:bg-red-500 font-bold text-xl"
+          className="px-10 py-4 rounded-xl bg-red-600 text-white hover:bg-red-500 font-bold text-xl transition-colors shadow-lg"
         >
           🚪 Logout
         </button>
       </div>
-    
+
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded-lg border-2 border-cyan-600 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+            <p className="text-cyan-300">Processing...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
       {showTopPlayersModal && (
         <TopPlayersModal
           players={topPlayers}
@@ -1053,7 +1153,6 @@ const handleViewQuestions = async () => {
 
       {showUploadQsModal && (
         <UploadQsModal
-          gameTitle={currentTeacherGameTitle}
           onClose={() => setShowUploadQsModal(false)}
           onInserted={handleUploadInserted}
         />
@@ -1061,43 +1160,39 @@ const handleViewQuestions = async () => {
 
       {showManualQsModal && (
         <ManualQuestionModal
-          gameTitle={currentTeacherGameTitle}
           onClose={() => setShowManualQsModal(false)}
-          onAdded={() => {}}
+          onAdded={fetchQuestions}
         />
       )}
-    
-      
-
 
       {showViewRankModal && (
         <ViewRankModal
-          gameTitle={currentTeacherGameTitle}
-          ranks={ranks}
+          gameTitle="Wisdom Warfare"
+          ranks={wisdomWarfareRanks}
           onClose={() => setShowViewRankModal(false)}
         />
       )}
 
       {showQuestionsModal && (
-  <ViewQuestionsModal
-    questions={questions}
-    onClose={() => setShowQuestionsModal(false)}
-    onEdit={handleEditQuestion}
-    onDelete={handleDeleteQuestion}
-  />
-)}
+        <ViewQuestionsModal
+          questions={questions}
+          onClose={() => setShowQuestionsModal(false)}
+          onEdit={handleEditQuestion}
+          onDelete={fetchQuestions}
+          onResetAll={fetchQuestions}
+        />
+      )}
 
-{showEditModal && editingQuestion && (
-  <EditQuestionModal
-    question={editingQuestion}
-    onSave={handleSaveEdit}
-    onCancel={() => setShowEditModal(false)}
-  />
-)}
-
-
-
-
+      {showEditModal && (
+        <EditQuestionModal
+          question={editingQuestion}
+          onSave={handleSaveEdit}
+          onCancel={() => {
+            setShowEditModal(false);
+            setEditingQuestion(null);
+          }}
+        />
+      )}
     </div>
   );
 }
