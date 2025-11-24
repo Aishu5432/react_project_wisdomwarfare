@@ -143,7 +143,7 @@ const StudentDashboard = () => {
               <div className="grid grid-cols-2 gap-2 mt-4 text-center">
                 <div className="p-2 bg-cyan-900 rounded">
                   <div className="text-cyan-300 font-bold">{gameStats.questions_answered || 0}</div>
-                  <div className="text-cyan-200 text-sm">Answered</div>
+                  <div className="text-cyan-200 text-sm">Answered(out of 30)</div>
                 </div>
                 <div className="p-2 bg-green-900 rounded">
                   <div className="text-green-300 font-bold">{performance.correct_answers || 0}</div>
@@ -168,7 +168,7 @@ const StudentDashboard = () => {
                 {userRank > 0 && (
                   <div className="mt-4 text-sm text-gray-300">
                     <div>Accuracy: {formatAccuracy(performance.accuracy)}%</div>
-                    <div>Total Attempts: {performance.attempts || 0}</div>
+                    <div>Total Attempted questions(out of 30): {performance.attempts || 0}</div>
                   </div>
                 )}
               </div>

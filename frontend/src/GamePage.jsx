@@ -70,7 +70,7 @@ function TopPlayersModal({ players, loading, error, onClose, onRetry }) {
                   <th className="p-3 text-left">Email</th>
                   <th className="p-3 text-right">Score</th>
                   <th className="p-3 text-right">Accuracy</th>
-                  <th className="p-3 text-right">Attempts</th>
+                  <th className="p-3 text-right">Attempted Questions(out of 30)</th>
                 </tr>
               </thead>
               <tbody>

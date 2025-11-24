@@ -660,7 +660,7 @@ const GameUI = ({ user, onLogout, onFinish }) => {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-cyan-300">{gameStats.questionsAnswered}</div>
-                  <div className="text-xs text-gray-300">Answered</div>
+                  <div className="text-xs text-gray-300">Answered(out of 30)</div>
                 </div>
               </div>
             </div>

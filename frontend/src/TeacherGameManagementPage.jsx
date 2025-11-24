@@ -26,7 +26,7 @@ function TopPlayersModal({ players, onClose }) {
                 <th className="p-3 text-left">Email</th>
                 <th className="p-3 text-right">Score</th>
                 <th className="p-3 text-right">Accuracy</th>
-                <th className="p-3 text-right">Attempts</th>
+                <th className="p-3 text-right">Attempted Questions(out of 30)</th>
               </tr>
             </thead>
             <tbody>
@@ -693,7 +693,7 @@ function ViewRankModal({ gameTitle, ranks, onClose }) {
                   <th className="p-3 text-left">Student</th>
                   <th className="p-3 text-left">Email</th>
                   <th className="p-3 text-right">Total Score</th>
-                  <th className="p-3 text-right">Questions</th>
+                  <th className="p-3 text-right">Questions answered(out of 30)</th>
                   <th className="p-3 text-right">Correct</th>
                   <th className="p-3 text-right">Accuracy</th>
                 </tr>
